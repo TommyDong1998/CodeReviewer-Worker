@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "prestart": "npm run build",
     "start": "node dist/worker.js",
     "build": "tsc",
     "dev": "ts-node src/worker.ts"
