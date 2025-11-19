@@ -5,6 +5,7 @@ This is the worker environment for the CodeReviewer application. It handles long
 ## Architecture
 
 The worker environment:
+
 - **HTTP server** that receives POST requests from Elastic Beanstalk's SQS daemon (sqsd)
 - sqsd automatically polls the SQS queue and forwards messages as HTTP POST requests
 - Runs security scanning tools (Semgrep, OpenGrep, Gitleaks, Checkov, Trivy)
@@ -27,11 +28,13 @@ SQS Queue → sqsd (Beanstalk daemon) → HTTP POST → Worker App
 ## Setup
 
 1. Install dependencies:
+
 ```bash
 npm install
 ```
 
 2. Configure environment variables (`.env`):
+
 ```bash
 POSTGRES_URL=postgresql://user:password@host:port/database
 PORT=8080
@@ -40,11 +43,13 @@ PORT=8080
 **Note**: SQS queue configuration is handled by Elastic Beanstalk's sqsd daemon, not by the application directly.
 
 3. Build:
+
 ```bash
 npm run build
 ```
 
 4. Run locally (for testing):
+
 ```bash
 npm run dev
 ```
@@ -56,16 +61,19 @@ The worker is deployed to AWS Elastic Beanstalk Worker tier via the infrastructu
 ### Manual Deployment
 
 1. Build the application:
+
 ```bash
 npm run build
 ```
 
 2. Create a deployment package:
+
 ```bash
 zip -r worker-deploy.zip package.json dist/ src/ .ebextensions/ Dockerfile
 ```
 
 3. Deploy to Elastic Beanstalk:
+
 ```bash
 eb deploy codereview-production-worker
 ```
@@ -73,6 +81,7 @@ eb deploy codereview-production-worker
 ## Security Tools
 
 The worker environment includes the following security scanning tools:
+
 - **Semgrep**: SAST using Trail of Bits rules
 - **OpenGrep**: Fast SAST fork of Semgrep
 - **Gitleaks**: Secret and credential detection
@@ -96,6 +105,7 @@ The worker receives HTTP POST requests from sqsd with the job in the request bod
 ```
 
 The worker:
+
 1. Receives HTTP POST request from sqsd (on port 8080, path `/`)
 2. Parses the job from the request body
 3. Downloads the repository
@@ -124,6 +134,7 @@ The worker:
 ### Security scans timing out
 
 The worker has a 1-hour timeout for each scan job. If scans are taking longer:
+
 1. Increase the SQS visibility timeout
 2. Increase the worker instance size
 3. Optimize the scan configuration (skip certain tools)
