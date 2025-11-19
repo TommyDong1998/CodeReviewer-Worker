@@ -9,6 +9,7 @@
     "dev": "ts-node src/worker.ts"
   },
   "dependencies": {
+    "@types/node": "^22.15.18",
     "adm-zip": "^0.5.16",
     "dotenv": "^16.5.0",
     "drizzle-orm": "^0.43.1",
@@ -17,7 +18,6 @@
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.7",
-    "@types/node": "^22.15.18",
     "ts-node": "^10.9.2"
   }
 }
