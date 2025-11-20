@@ -116,6 +116,7 @@ export async function downloadRepoAsZip(
         const fileHandle = await import('fs/promises').then(m => m.open(zipPath, 'r'));
         zipHeader = Buffer.alloc(200);
         await fileHandle.read(zipHeader, 0, 200, 0);
+        console.log(`Read first ${zipHeader.length} bytes of downloaded file for validation`);
         await fileHandle.close();
       } catch (readError: any) {
         throw new Error(`Failed to read downloaded file: ${readError.message}`);
@@ -143,6 +144,14 @@ export async function downloadRepoAsZip(
       }
 
       console.log('✓ Zip file validation passed - file appears to be a valid zip archive');
+
+      // Run an explicit ls so we can see the file on disk before extraction
+      try {
+        const { stdout } = await execAsync(`ls -lh "${zipPath}"`);
+        console.log('Zip file listing:\n' + stdout.trim());
+      } catch (lsError) {
+        console.warn(`Failed to list ${zipPath} before extraction:`, (lsError as Error).message);
+      }
     } catch (error: any) {
       console.error('Download/validation failed:', error.message);
 
@@ -196,6 +205,14 @@ export async function downloadRepoAsZip(
       }
     } catch (moveError) {
       console.warn('Failed to flatten extracted repo, continuing with nested path:', moveError);
+    }
+
+    // Log the directory contents after extraction/flattening
+    try {
+      const { stdout } = await execAsync(`ls -al "${repoRootPath}"`);
+      console.log('Extracted repo contents:\n' + stdout.trim());
+    } catch (lsError) {
+      console.warn(`Failed to list ${repoRootPath} after extraction:`, (lsError as Error).message);
     }
 
     // Clean up zip file
