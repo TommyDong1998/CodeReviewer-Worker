@@ -199,7 +199,7 @@ export async function downloadRepoAsZip(
     }
 
     // Clean up zip file
-    await rm(zipPath, { force: true });
+    //await rm(zipPath, { force: true });
 
     console.log(`Repository extracted to ${repoRootPath}`);
 
