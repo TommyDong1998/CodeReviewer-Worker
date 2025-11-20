@@ -1,9 +1,9 @@
-import { App } from '@octokit/app';
 import { existsSync, readFileSync } from 'fs';
 import path from 'path';
 import { db } from '../db/drizzle';
 import { githubAppInstallations } from '../db/schema';
 import { eq } from 'drizzle-orm';
+import { createSign } from 'crypto';
 
 /**
  * GitHub App configuration
@@ -51,18 +51,83 @@ if (!GITHUB_APP_ID || !GITHUB_APP_PRIVATE_KEY) {
   console.error('These are required for the worker to authenticate with GitHub.');
 }
 
-/**
- * Create an Octokit App instance
- */
-export function createGitHubApp() {
+function ensureGitHubAppCredentials() {
   if (!GITHUB_APP_ID || !GITHUB_APP_PRIVATE_KEY) {
-    throw new Error('GitHub App credentials not configured. Please set GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY_PATH (or legacy GITHUB_APP_PRIVATE_KEY) environment variables.');
+    throw new Error(
+      'GitHub App credentials not configured. Please set GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY_PATH (or legacy GITHUB_APP_PRIVATE_KEY) environment variables.'
+    );
+  }
+}
+
+function base64Url(buffer: Buffer | string): string {
+  return Buffer.from(buffer)
+    .toString('base64')
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+}
+
+function createAppJwt(): string {
+  ensureGitHubAppCredentials();
+  const appId = Number(GITHUB_APP_ID);
+  if (!Number.isFinite(appId)) {
+    throw new Error(`Invalid GITHUB_APP_ID value: ${GITHUB_APP_ID}`);
   }
 
-  return new App({
-    appId: GITHUB_APP_ID,
-    privateKey: GITHUB_APP_PRIVATE_KEY,
+  const now = Math.floor(Date.now() / 1000);
+  // Allow up to 10 minutes per GitHub's requirements, minus a minute for clock drift
+  const payload = {
+    iat: now - 60,
+    exp: now + 9 * 60,
+    iss: appId,
+  };
+
+  const header = {
+    alg: 'RS256',
+    typ: 'JWT',
+  };
+
+  const encodedHeader = base64Url(JSON.stringify(header));
+  const encodedPayload = base64Url(JSON.stringify(payload));
+  const signingInput = `${encodedHeader}.${encodedPayload}`;
+  const signature = createSign('RSA-SHA256').update(signingInput).sign(GITHUB_APP_PRIVATE_KEY!);
+
+  return `${signingInput}.${base64Url(signature)}`;
+}
+
+async function requestInstallationToken(installationId: number) {
+  ensureGitHubAppCredentials();
+  const jwt = createAppJwt();
+  const url = `https://api.github.com/app/installations/${installationId}/access_tokens`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${jwt}`,
+      Accept: 'application/vnd.github+json',
+      'User-Agent': 'codereview-worker',
+    },
   });
+
+  const responseText = await response.text();
+  let data: { token: string; expires_at: string };
+  try {
+    data = JSON.parse(responseText);
+  } catch {
+    throw new Error(`GitHub API returned non-JSON response: ${responseText}`);
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch installation token (${response.status} ${response.statusText}): ${responseText}`
+    );
+  }
+
+  if (!data?.token || !data?.expires_at) {
+    throw new Error('GitHub API response missing token or expires_at fields');
+  }
+
+  return data;
 }
 
 /**
@@ -94,10 +159,12 @@ export async function getInstallationToken(installationIdString: string): Promis
 
   // Token is expired or about to expire, get a new one
   console.log(`Fetching new installation token for ${installationIdString}...`);
-  const app = createGitHubApp();
-  const { data } = await app.octokit.request('POST /app/installations/{installation_id}/access_tokens', {
-    installation_id: parseInt(installationIdString),
-  });
+  const installationId = parseInt(installationIdString, 10);
+  if (!Number.isFinite(installationId)) {
+    throw new Error(`Invalid installation ID: ${installationIdString}`);
+  }
+
+  const data = await requestInstallationToken(installationId);
 
   // Update the installation record with new token
   await db
