@@ -1,6 +1,6 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { mkdir, rm, readdir, readFile, stat } from 'fs/promises';
+import { mkdir, rm, readdir, readFile, stat, rename } from 'fs/promises';
 import { join } from 'path';
 
 const execAsync = promisify(exec);
@@ -178,14 +178,33 @@ export async function downloadRepoAsZip(
     }
     const extractedDir = extractedDirs[0];
     const repoPath = join(tempDir, extractedDir);
+    let repoRootPath = repoPath;
+
+    // Flatten extracted repo so scanners can read from tempDir root
+    try {
+      const repoEntries = await readdir(repoPath, { withFileTypes: true });
+      if (repoEntries.length === 0) {
+        console.warn(`Extracted repository directory ${repoPath} is empty, skipping flatten step`);
+      } else {
+        for (const entry of repoEntries) {
+          const fromPath = join(repoPath, entry.name);
+          const toPath = join(tempDir, entry.name);
+          await rename(fromPath, toPath);
+        }
+        await rm(repoPath, { recursive: true, force: true });
+        repoRootPath = tempDir;
+      }
+    } catch (moveError) {
+      console.warn('Failed to flatten extracted repo, continuing with nested path:', moveError);
+    }
 
     // Clean up zip file
     await rm(zipPath, { force: true });
 
-    console.log(`Repository extracted to ${repoPath}`);
+    console.log(`Repository extracted to ${repoRootPath}`);
 
     return {
-      path: repoPath,
+      path: repoRootPath,
       cleanup: async () => {
         try {
           await rm(tempDir, { recursive: true, force: true });
