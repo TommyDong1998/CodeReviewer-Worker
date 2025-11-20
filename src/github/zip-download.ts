@@ -103,7 +103,7 @@ export async function downloadRepoAsZip(
       // Reject files larger than 5GB to prevent memory issues
       const MAX_REPO_SIZE = 5 * 1024 * 1024 * 1024; // 5GB
       if (fileStats.size > MAX_REPO_SIZE) {
-        await rm(zipPath, { force: true });
+        // await rm(zipPath, { force: true });
         throw new Error(`Repository is too large (${Math.round(fileStats.size / 1024 / 1024)}MB). Maximum size is ${Math.round(MAX_REPO_SIZE / 1024 / 1024)}MB.`);
       }
 
@@ -148,7 +148,7 @@ export async function downloadRepoAsZip(
 
       // Cleanup the bad file
       try {
-        await rm(zipPath, { force: true });
+        // await rm(zipPath, { force: true });
       } catch (cleanupErr) {
         // Ignore cleanup errors
       }
@@ -191,7 +191,7 @@ export async function downloadRepoAsZip(
           const toPath = join(tempDir, entry.name);
           await rename(fromPath, toPath);
         }
-        await rm(repoPath, { recursive: true, force: true });
+        // await rm(repoPath, { recursive: true, force: true });
         repoRootPath = tempDir;
       }
     } catch (moveError) {
@@ -207,7 +207,7 @@ export async function downloadRepoAsZip(
       path: repoRootPath,
       cleanup: async () => {
         try {
-          await rm(tempDir, { recursive: true, force: true });
+          // await rm(tempDir, { recursive: true, force: true });
           console.log(`Cleaned up temp directory: ${tempDir}`);
         } catch (error) {
           console.error('Failed to cleanup temp directory:', error);
@@ -217,8 +217,8 @@ export async function downloadRepoAsZip(
   } catch (error) {
     // Cleanup on error - remove both temp directory and zip file
     try {
-      await rm(tempDir, { recursive: true, force: true });
-      await rm(join(TEMP_DIR, `${scanId}.zip`), { force: true });
+      // await rm(tempDir, { recursive: true, force: true });
+      // await rm(join(TEMP_DIR, `${scanId}.zip`), { force: true });
     } catch (cleanupError) {
       console.error('Failed to cleanup after error:', cleanupError);
     }
@@ -280,7 +280,7 @@ export async function cleanupOldTempFiles(): Promise<void> {
       try {
         const stats = await stat(fullPath);
         if (stats.mtimeMs < oneHourAgo) {
-          await rm(fullPath, { recursive: true, force: true });
+          // await rm(fullPath, { recursive: true, force: true });
           cleanedCount++;
           console.log(`Cleaned up old temp file/directory: ${entry.name}`);
         }
