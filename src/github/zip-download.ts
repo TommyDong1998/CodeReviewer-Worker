@@ -36,8 +36,8 @@ export async function downloadRepoAsZip(
   options: RepoDownloadOptions
 ): Promise<RepoDownloadResult> {
   const scanId = `repo-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-  const tempDir = join(TEMP_DIR, scanId);
-  await mkdir(tempDir, { recursive: true });
+    const tempDir = join(TEMP_DIR, scanId);
+    await mkdir(tempDir, { recursive: true });
 
   try {
     // Extract owner and repo name from URL (e.g., https://github.com/owner/repo.git)
@@ -179,16 +179,13 @@ export async function downloadRepoAsZip(
     const extractedDir = extractedDirs[0];
     const repoPath = join(tempDir, extractedDir);
 
-    // Move contents up one level so the repo is at tempDir root
-    await execAsync(`mv "${repoPath}"/* "${repoPath}"/.[!.]* "${tempDir}/" 2>/dev/null || mv "${repoPath}"/* "${tempDir}/" && rmdir "${repoPath}"`);
-
     // Clean up zip file
     await rm(zipPath, { force: true });
 
-    console.log(`Repository extracted to ${tempDir}`);
+    console.log(`Repository extracted to ${repoPath}`);
 
     return {
-      path: tempDir,
+      path: repoPath,
       cleanup: async () => {
         try {
           await rm(tempDir, { recursive: true, force: true });
