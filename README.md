@@ -38,9 +38,33 @@ npm install
 ```bash
 POSTGRES_URL=postgresql://user:password@host:port/database
 PORT=8080
+
+# GitHub App Configuration (required for private repo access)
+GITHUB_APP_ID=your_github_app_id
+GITHUB_APP_PRIVATE_KEY_PATH=./config/github-app-private-key.pem
 ```
 
 **Note**: SQS queue configuration is handled by Elastic Beanstalk's sqsd daemon, not by the application directly.
+
+### GitHub App Authentication
+
+The worker uses GitHub App authentication to access private repositories. This is the same GitHub App used by the main CodeReviewer application.
+
+**How it works:**
+1. The main app stores GitHub App installations in the database with access tokens
+2. When a security scan job is queued, it includes the repo's installation ID
+3. The worker fetches or refreshes the installation token from the database
+4. The token is used to authenticate with GitHub when downloading the repository
+
+**Configuration:**
+- `GITHUB_APP_ID`: Your GitHub App ID (found in GitHub App settings)
+- `GITHUB_APP_PRIVATE_KEY_PATH`: Absolute path to the PEM file for your GitHub App private key. By default the repo ships with `config/github-app-private-key.pem` so you can mount or replace it as needed.
+- (Legacy) `GITHUB_APP_PRIVATE_KEY`: Only for backwards compatibility. Prefer storing the PEM on disk and pointing `GITHUB_APP_PRIVATE_KEY_PATH` at it.
+
+The worker will automatically:
+- Use cached installation tokens if still valid (1-hour expiry)
+- Refresh tokens when expired or about to expire
+- Fall back to public repo access if no authentication is available
 
 3. Build:
 
@@ -94,6 +118,17 @@ All tools are installed via `.ebextensions/01_security_tools.config`.
 
 The worker receives HTTP POST requests from sqsd with the job in the request body:
 
+```json
+{
+  "scanId": "scan_123456_abc",
+  "repoId": 1,
+  "repoUrl": "https://github.com/owner/repo.git",
+  "branch": "main",
+  "installationId": "12345678"
+}
+```
+
+**Legacy format (still supported):**
 ```json
 {
   "scanId": "scan_123456_abc",

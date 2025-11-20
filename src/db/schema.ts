@@ -152,6 +152,32 @@ export const githubTokens = pgTable('github_tokens', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// GitHub App Installations table
+export const githubAppInstallations = pgTable('github_app_installations', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  installationId: text('installation_id').notNull().unique(), // GitHub installation ID
+  accountId: text('account_id').notNull(), // GitHub account/org ID
+  accountLogin: text('account_login').notNull(), // GitHub username or org name
+  accountType: varchar('account_type', { length: 20 }).notNull(), // 'User' or 'Organization'
+  accountAvatarUrl: text('account_avatar_url'), // Account avatar for UI
+  accessToken: text('access_token'), // Installation access token (expires in 1 hour)
+  tokenExpiresAt: timestamp('token_expires_at'), // When the access token expires
+  permissions: jsonb('permissions'), // Granted permissions
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const githubAppInstallationsRelations = relations(githubAppInstallations, ({ one, many }) => ({
+  user: one(users, {
+    fields: [githubAppInstallations.userId],
+    references: [users.id],
+  }),
+  repositories: many(githubRepos),
+}));
+
 export const githubRepos = pgTable(
   'github_repos',
   {
@@ -163,6 +189,8 @@ export const githubRepos = pgTable(
       .notNull()
       .references(() => users.id),
     teamId: integer('team_id').references(() => teams.id),
+    installationId: integer('installation_id')
+      .references(() => githubAppInstallations.id),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
@@ -177,6 +205,21 @@ export const githubRepos = pgTable(
     ),
   }),
 );
+
+export const githubReposRelations = relations(githubRepos, ({ one }) => ({
+  user: one(users, {
+    fields: [githubRepos.userId],
+    references: [users.id],
+  }),
+  team: one(teams, {
+    fields: [githubRepos.teamId],
+    references: [teams.id],
+  }),
+  installation: one(githubAppInstallations, {
+    fields: [githubRepos.installationId],
+    references: [githubAppInstallations.id],
+  }),
+}));
 
 export const codeReviews = pgTable('code_reviews', {
   id: serial('id').primaryKey(),

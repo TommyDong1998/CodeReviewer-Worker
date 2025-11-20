@@ -9,6 +9,7 @@
     "dev": "ts-node src/worker.ts"
   },
   "dependencies": {
+    "@octokit/app": "^15.1.0",
     "@types/node": "^22.15.18",
     "adm-zip": "^0.5.16",
     "dotenv": "^16.5.0",

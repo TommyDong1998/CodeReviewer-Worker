@@ -1,27 +1,54 @@
 import http from 'http';
 import { runSecurityScan } from './security/orchestrator';
 import { db } from './db/drizzle';
-import { securityScans, securityIssues } from './db/schema';
+import { securityScans, securityIssues, githubRepos } from './db/schema';
 import { eq } from 'drizzle-orm';
+import { getInstallationToken } from './github/app';
 
 interface SecurityScanJob {
   scanId: string;
   repoId: number;
   repoUrl: string;
   branch: string;
-  token?: string;
+  token?: string; // Legacy - kept for backwards compatibility
+  installationId?: string; // GitHub App installation ID (preferred)
 }
 
 async function processJob(job: SecurityScanJob): Promise<void> {
   console.log(`Processing security scan job: ${job.scanId}`);
 
   try {
+    // Get authentication token
+    let token: string | undefined = job.token;
+
+    // If no token provided, try to get it from GitHub App installation
+    if (!token && job.installationId) {
+      console.log(`Fetching installation token for installation: ${job.installationId}`);
+      token = await getInstallationToken(job.installationId);
+    } else if (!token) {
+      // Try to get installation ID from repo record
+      console.log(`No token or installationId provided, looking up repo installation...`);
+      const repo = await db.query.githubRepos.findFirst({
+        where: eq(githubRepos.id, job.repoId),
+        with: {
+          installation: true,
+        },
+      });
+
+      if (repo?.installation?.installationId) {
+        console.log(`Found installation ID from repo: ${repo.installation.installationId}`);
+        token = await getInstallationToken(repo.installation.installationId);
+      } else {
+        console.warn(`No authentication available for repo ${job.repoId}. Will attempt to download as public repo.`);
+      }
+    }
+
     // Run the security scan
     const scanResult = await runSecurityScan({
       repoId: job.repoId,
       repoUrl: job.repoUrl,
       branch: job.branch,
-      token: job.token,
+      token: token,
     });
 
     // Update scan record with results
