@@ -1,6 +1,6 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { SecurityIssue, SecuritySeverity } from '../types';
+import { SecurityIssue, SecuritySeverity } from '../types.js';
 
 const execAsync = promisify(exec);
 

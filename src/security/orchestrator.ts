@@ -1,13 +1,13 @@
-import { SecurityIssue, SecurityScanResult } from './types';
-import { runSemgrep } from './scanners/semgrep';
-import { runOpengrep } from './scanners/opengrep';
-import { runGitleaks } from './scanners/gitleaks';
-import { runCheckov } from './scanners/checkov';
-import { runTrivy } from './scanners/trivy';
+import { SecurityIssue, SecurityScanResult } from './types.js';
+import { runSemgrep } from './scanners/semgrep.js';
+import { runOpengrep } from './scanners/opengrep.js';
+import { runGitleaks } from './scanners/gitleaks.js';
+import { runCheckov } from './scanners/checkov.js';
+import { runTrivy } from './scanners/trivy.js';
 import { randomUUID } from 'crypto';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { downloadRepoAsZip } from '../github/zip-download';
+import { downloadRepoAsZip } from '../github/zip-download.js';
 
 const execAsync = promisify(exec);
 

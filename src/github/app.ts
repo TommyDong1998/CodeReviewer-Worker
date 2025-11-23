@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'fs';
 import path from 'path';
-import { db } from '../db/drizzle';
-import { githubAppInstallations } from '../db/schema';
+import { db } from '../db/drizzle.js';
+import { githubAppInstallations } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { createSign } from 'crypto';
 

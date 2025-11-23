@@ -1,10 +1,10 @@
 import http from 'http';
-import { runSecurityScan } from './security/orchestrator';
-import { runFunctionScan } from './parsing/orchestrator';
-import { db } from './db/drizzle';
-import { securityScans, securityIssues, functionScans, githubRepos } from './db/schema';
+import { runSecurityScan } from './security/orchestrator.js';
+import { runFunctionScan } from './parsing/orchestrator.js';
+import { db } from './db/drizzle.js';
+import { securityScans, securityIssues, functionScans, githubRepos } from './db/schema.js';
 import { eq } from 'drizzle-orm';
-import { getInstallationToken } from './github/app';
+import { getInstallationToken } from './github/app.js';
 
 interface BaseJob {
   jobType: 'security' | 'function';

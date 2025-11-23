@@ -1,8 +1,8 @@
-import { parseCodeFunctions } from './tree-sitter-parser';
-import { db } from '../db/drizzle';
-import { codeReviews } from '../db/schema';
+import { parseCodeFunctions } from './tree-sitter-parser.js';
+import { db } from '../db/drizzle.js';
+import { codeReviews } from '../db/schema.js';
 import { eq, and, isNull } from 'drizzle-orm';
-import { downloadRepoAsZip, walkDirectory, readRepoFile } from '../github/zip-download';
+import { downloadRepoAsZip, walkDirectory, readRepoFile } from '../github/zip-download.js';
 
 const SUPPORTED_EXTENSIONS = [
   '.js', '.jsx', '.mjs', '.cjs',
