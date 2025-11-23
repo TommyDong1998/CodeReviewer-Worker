@@ -95,6 +95,13 @@ async function getParserModule() {
         }
         return path.join(scriptDirectory, scriptName);
       },
+      // Provide missing WASM callbacks for Node.js 20 compatibility
+      onRuntimeInitialized() {},
+      // Add empty stubs for missing env functions
+      env: {
+        tree_sitter_progress_callback: () => {},
+        tree_sitter_log_callback: () => {},
+      } as any,
     });
 
     parserModule = { Parser, Language: Parser.Language };
