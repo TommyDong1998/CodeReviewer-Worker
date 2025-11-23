@@ -101,11 +101,18 @@ async function getParserModule() {
       instantiateWasm(imports: any, successCallback: any) {
         // Add missing callback stubs to env imports
         if (!imports.env) imports.env = {};
+
+        // Create actual function objects (not arrow functions in case that matters)
+        const noop = function() {};
+
         // Add all possible tree-sitter callback stubs
-        imports.env.tree_sitter_progress_callback = () => {};
-        imports.env.tree_sitter_log_callback = () => {};
-        imports.env.tree_sitter_query_progress_callback = () => {};
-        imports.env.emscripten_notify_memory_growth = () => {};
+        imports.env.tree_sitter_progress_callback = noop;
+        imports.env.tree_sitter_log_callback = noop;
+        imports.env.tree_sitter_query_progress_callback = noop;
+        imports.env.emscripten_notify_memory_growth = noop;
+
+        console.log('[Worker Parser] Added callbacks to imports.env:', Object.keys(imports.env));
+        console.log('[Worker Parser] tree_sitter_query_progress_callback type:', typeof imports.env.tree_sitter_query_progress_callback);
 
         const wasmPath = path.join(LOCAL_WASM_DIR, 'tree-sitter.wasm');
 
