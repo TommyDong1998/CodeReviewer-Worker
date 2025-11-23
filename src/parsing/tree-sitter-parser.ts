@@ -88,6 +88,11 @@ async function getParserModule() {
     console.log('[Worker Parser] Parser.init exists:', typeof Parser.init);
 
     await ensureCoreParserWasm();
+
+    // Provide empty callback stubs globally for WASM to find
+    (globalThis as any).tree_sitter_progress_callback = () => {};
+    (globalThis as any).tree_sitter_log_callback = () => {};
+
     await Parser.init({
       locateFile(scriptName: string, scriptDirectory: string) {
         if (scriptName === 'tree-sitter.wasm') {
@@ -95,13 +100,6 @@ async function getParserModule() {
         }
         return path.join(scriptDirectory, scriptName);
       },
-      // Provide missing WASM callbacks for Node.js 20 compatibility
-      onRuntimeInitialized() {},
-      // Add empty stubs for missing env functions
-      env: {
-        tree_sitter_progress_callback: () => {},
-        tree_sitter_log_callback: () => {},
-      } as any,
     });
 
     parserModule = { Parser, Language: Parser.Language };
