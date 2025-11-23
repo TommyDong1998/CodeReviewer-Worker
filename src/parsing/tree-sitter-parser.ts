@@ -91,23 +91,36 @@ async function getParserModule() {
 
     // Monkey-patch WebAssembly.instantiate to inject missing env callbacks
     const originalInstantiate = (globalThis as any).WebAssembly.instantiate;
-    (globalThis as any).WebAssembly.instantiate = function(buffer: any, imports: any) {
-      // Inject missing callbacks into imports.env
+    const originalInstantiateStreaming = (globalThis as any).WebAssembly.instantiateStreaming;
+
+    const injectCallbacks = (imports: any) => {
+      console.log('[Worker Parser] injectCallbacks called, imports:', !!imports);
       if (imports && imports.env) {
+        console.log('[Worker Parser] imports.env exists, keys:', Object.keys(imports.env));
         const noop = function() {};
-        if (!imports.env.tree_sitter_progress_callback) {
-          imports.env.tree_sitter_progress_callback = noop;
-        }
-        if (!imports.env.tree_sitter_log_callback) {
-          imports.env.tree_sitter_log_callback = noop;
-        }
-        if (!imports.env.tree_sitter_query_progress_callback) {
-          imports.env.tree_sitter_query_progress_callback = noop;
-        }
+        imports.env.tree_sitter_progress_callback = noop;
+        imports.env.tree_sitter_log_callback = noop;
+        imports.env.tree_sitter_query_progress_callback = noop;
+        imports.env.emscripten_notify_memory_growth = noop;
         console.log('[Worker Parser] Injected callbacks into WASM imports');
+      } else {
+        console.log('[Worker Parser] No imports.env found!');
       }
-      return originalInstantiate.call(this, buffer, imports);
     };
+
+    (globalThis as any).WebAssembly.instantiate = async function(buffer: any, imports: any) {
+      console.log('[Worker Parser] WebAssembly.instantiate intercepted');
+      injectCallbacks(imports);
+      return originalInstantiate.call((globalThis as any).WebAssembly, buffer, imports);
+    };
+
+    if (originalInstantiateStreaming) {
+      (globalThis as any).WebAssembly.instantiateStreaming = async function(source: any, imports: any) {
+        console.log('[Worker Parser] WebAssembly.instantiateStreaming intercepted');
+        injectCallbacks(imports);
+        return originalInstantiateStreaming.call((globalThis as any).WebAssembly, source, imports);
+      };
+    }
 
     try {
       await Parser.init({
@@ -119,8 +132,11 @@ async function getParserModule() {
         },
       });
     } finally {
-      // Restore original WebAssembly.instantiate
+      // Restore original WebAssembly functions
       (globalThis as any).WebAssembly.instantiate = originalInstantiate;
+      if (originalInstantiateStreaming) {
+        (globalThis as any).WebAssembly.instantiateStreaming = originalInstantiateStreaming;
+      }
     }
 
     parserModule = { Parser, Language: Parser.Language };
