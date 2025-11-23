@@ -4,7 +4,6 @@
 import fs from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
 import path from 'node:path';
-import { createRequire } from 'node:module';
 import crypto from 'node:crypto';
 
 let ParserModule: any;
@@ -13,7 +12,6 @@ const languageCache = new Map();
 
 const LOCAL_WASM_DIR = path.join(process.cwd(), 'public', 'tree-sitter');
 const CORE_WASM_FILE = path.join(LOCAL_WASM_DIR, 'tree-sitter.wasm');
-const require = createRequire(import.meta.url);
 let coreWasmReady = false;
 
 // ---------------- Language Definitions ----------------
@@ -124,7 +122,8 @@ async function ensureCoreParserWasm() {
 
 function resolveModuleAsset(specifier: string) {
   try {
-    return require.resolve(specifier);
+    // Use dynamic require since we're in CommonJS
+    return eval('require').resolve(specifier);
   } catch (error) {
     console.error(`Unable to resolve ${specifier}. Make sure dependencies are installed.`, error);
     throw error;
