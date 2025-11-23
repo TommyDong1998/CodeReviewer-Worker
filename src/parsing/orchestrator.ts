@@ -1,4 +1,4 @@
-import { parseCodeFunctions } from './tree-sitter-parser.js';
+import { parseCodeFunctions } from './native-tree-sitter-parser.js';
 import { db } from '../db/drizzle.js';
 import { codeReviews } from '../db/schema.js';
 import { eq, and, isNull } from 'drizzle-orm';
