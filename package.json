@@ -2,6 +2,7 @@
   "name": "codereview-worker",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "prestart": "npm run build",
     "start": "node dist/worker.js",

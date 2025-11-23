@@ -122,8 +122,28 @@ async function ensureCoreParserWasm() {
 
 function resolveModuleAsset(specifier: string) {
   try {
-    // Use dynamic require since we're in CommonJS
-    return eval('require').resolve(specifier);
+    // Use import.meta.resolve for ESM (Node 20.6+)
+    // Fallback to manual resolution for older Node versions
+    if (typeof (import.meta as any).resolve === 'function') {
+      return (import.meta as any).resolve(specifier);
+    }
+
+    // Manual resolution fallback
+    const paths = [
+      path.join(process.cwd(), 'node_modules', specifier),
+      path.join(process.cwd(), '..', 'node_modules', specifier),
+    ];
+
+    for (const p of paths) {
+      try {
+        // Just return the path, we'll let the actual file operation validate it exists
+        return p;
+      } catch {
+        continue;
+      }
+    }
+
+    throw new Error(`Cannot resolve ${specifier}`);
   } catch (error) {
     console.error(`Unable to resolve ${specifier}. Make sure dependencies are installed.`, error);
     throw error;
@@ -154,13 +174,38 @@ function resolveParserExports(mod: any) {
     mod?.default?.Parser?.Language,
     ParserCtor.Language,
   ];
+
+  // Debug logging
+  console.log('[Worker Parser] Resolving Language constructor...');
+  console.log('[Worker Parser] Module keys:', Object.keys(mod ?? {}));
+  console.log('[Worker Parser] mod.Language exists:', !!mod?.Language);
+  console.log('[Worker Parser] mod.Language:', mod?.Language);
+  console.log('[Worker Parser] typeof mod.Language:', typeof mod?.Language);
+  if (mod?.Language) {
+    console.log('[Worker Parser] mod.Language.load exists:', !!mod.Language.load);
+    console.log('[Worker Parser] typeof mod.Language.load:', typeof mod.Language.load);
+    console.log('[Worker Parser] mod.Language properties:', Object.getOwnPropertyNames(mod.Language));
+  }
+
   const LanguageCtor = languageCandidates.find(
     (candidate) => candidate && typeof candidate.load === 'function'
   );
 
   if (!LanguageCtor) {
+    console.error('[Worker Parser] ERROR: Language.load() not found!');
+    console.error('[Worker Parser] All candidates:');
+    languageCandidates.forEach((c, i) => {
+      console.error(`[Worker Parser]   Candidate ${i}:`, {
+        exists: !!c,
+        type: typeof c,
+        hasLoad: !!c?.load,
+        loadType: typeof c?.load,
+      });
+    });
     throw new Error('web-tree-sitter: Language.load() not found in import.');
   }
+
+  console.log('[Worker Parser] ✓ Successfully found Language constructor');
 
   return { Parser: ParserCtor, Language: LanguageCtor };
 }
