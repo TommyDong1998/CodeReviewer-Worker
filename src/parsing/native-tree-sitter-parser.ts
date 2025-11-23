@@ -192,13 +192,14 @@ function collectFunctions(
       let endLine = node.endPosition.row + 1;
 
       if (node.type === 'arrow_function') {
-        const paramsNode = node.childForFieldName('parameters') || node.childForFieldName('parameter');
+        // Try to find parameters node
+        const paramsNode = (node as any).parametersNode || node.namedChildren.find((child: Parser.SyntaxNode) => child.type === 'formal_parameters');
         if (paramsNode) {
           startLine = paramsNode.startPosition.row + 1;
         }
       }
 
-      const bodyNode = node.childForFieldName('body');
+      const bodyNode = (node as any).bodyNode || node.namedChildren.find((child: Parser.SyntaxNode) => child.type === 'statement_block' || child.type === 'expression_statement');
       if (bodyNode) {
         endLine = bodyNode.endPosition.row + 1;
       }
@@ -241,13 +242,13 @@ function collectFunctions(
 }
 
 function resolveFunctionName(node: Parser.SyntaxNode, code: string): string {
-  const nameNode = node.childForFieldName('name');
+  const nameNode = (node as any).nameNode;
   if (nameNode) return code.slice(nameNode.startIndex, nameNode.endIndex);
   return `anonymous_${node.startIndex}`;
 }
 
 function resolveClassName(node: Parser.SyntaxNode, code: string): string {
-  const nameNode = node.childForFieldName('name');
+  const nameNode = (node as any).nameNode;
   if (nameNode) {
     return code.slice(nameNode.startIndex, nameNode.endIndex);
   }
