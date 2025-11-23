@@ -27,13 +27,7 @@
     "tree-sitter-ruby": "^0.20.0",
     "tree-sitter-go": "^0.20.0",
     "tree-sitter-rust": "^0.20.4",
-    "tree-sitter-kotlin": "^0.3.1",
-    "tree-sitter-swift": "^0.3.7",
-    "tree-sitter-bash": "^0.20.4",
-    "tree-sitter-dart": "^0.0.1",
-    "tree-sitter-scala": "^0.20.2",
-    "tree-sitter-lua": "^0.0.19",
-    "tree-sitter-sql": "^0.1.0"
+    "tree-sitter-bash": "^0.20.4"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.7",
