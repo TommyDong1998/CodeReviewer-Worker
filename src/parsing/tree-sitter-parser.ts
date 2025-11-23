@@ -89,16 +89,35 @@ async function getParserModule() {
 
     await ensureCoreParserWasm();
 
-    // Provide empty callback stubs globally for WASM to find
-    (globalThis as any).tree_sitter_progress_callback = () => {};
-    (globalThis as any).tree_sitter_log_callback = () => {};
-
     await Parser.init({
       locateFile(scriptName: string, scriptDirectory: string) {
         if (scriptName === 'tree-sitter.wasm') {
           return path.join(LOCAL_WASM_DIR, 'tree-sitter.wasm');
         }
         return path.join(scriptDirectory, scriptName);
+      },
+      // CRITICAL: Provide instantiateWasm to handle WASM instantiation manually
+      // This allows us to inject the missing env functions
+      instantiateWasm(imports: any, successCallback: any) {
+        // Add missing callback stubs to env imports
+        if (!imports.env) imports.env = {};
+        imports.env.tree_sitter_progress_callback = () => {};
+        imports.env.tree_sitter_log_callback = () => {};
+
+        const wasmPath = path.join(LOCAL_WASM_DIR, 'tree-sitter.wasm');
+
+        import('fs').then(({ promises: fs }) => {
+          return fs.readFile(wasmPath);
+        }).then((wasmBinary: Buffer) => {
+          return (globalThis as any).WebAssembly.instantiate(wasmBinary, imports);
+        }).then((result: any) => {
+          successCallback(result.instance, result.module);
+        }).catch((error: Error) => {
+          console.error('[Worker Parser] WASM instantiation failed:', error);
+          throw error;
+        });
+
+        return {}; // Return empty object for emscripten
       },
     });
 
