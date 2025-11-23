@@ -151,11 +151,14 @@ function resolveModuleAsset(specifier: string) {
 }
 
 function resolveParserExports(mod: any) {
+  // Handle both ESM and CommonJS module formats
+  const actualModule = mod?.default ?? mod;
+
   const parserCandidates = [
+    actualModule?.Parser,
+    actualModule,
+    typeof actualModule === 'function' ? actualModule : null,
     mod?.Parser,
-    mod?.default?.Parser,
-    typeof mod?.default === 'function' ? mod.default : null,
-    typeof mod === 'function' ? mod : null,
   ];
 
   const ParserCtor = parserCandidates.find(
@@ -164,27 +167,30 @@ function resolveParserExports(mod: any) {
 
   if (!ParserCtor) {
     console.error('web-tree-sitter module keys:', Object.keys(mod ?? {}));
+    console.error('web-tree-sitter actualModule keys:', Object.keys(actualModule ?? {}));
     throw new Error('web-tree-sitter: Parser.init() not found in import.');
   }
 
   const languageCandidates = [
+    actualModule?.Language,
+    ParserCtor?.Language,
     mod?.Language,
     mod?.default?.Language,
-    mod?.Parser?.Language,
-    mod?.default?.Parser?.Language,
-    ParserCtor.Language,
   ];
 
   // Debug logging
   console.log('[Worker Parser] Resolving Language constructor...');
   console.log('[Worker Parser] Module keys:', Object.keys(mod ?? {}));
-  console.log('[Worker Parser] mod.Language exists:', !!mod?.Language);
-  console.log('[Worker Parser] mod.Language:', mod?.Language);
-  console.log('[Worker Parser] typeof mod.Language:', typeof mod?.Language);
-  if (mod?.Language) {
-    console.log('[Worker Parser] mod.Language.load exists:', !!mod.Language.load);
-    console.log('[Worker Parser] typeof mod.Language.load:', typeof mod.Language.load);
-    console.log('[Worker Parser] mod.Language properties:', Object.getOwnPropertyNames(mod.Language));
+  console.log('[Worker Parser] actualModule keys:', Object.keys(actualModule ?? {}));
+  console.log('[Worker Parser] actualModule.Language exists:', !!actualModule?.Language);
+  console.log('[Worker Parser] ParserCtor.Language exists:', !!ParserCtor?.Language);
+  if (actualModule?.Language) {
+    console.log('[Worker Parser] actualModule.Language.load exists:', !!actualModule.Language.load);
+    console.log('[Worker Parser] typeof actualModule.Language.load:', typeof actualModule.Language.load);
+  }
+  if (ParserCtor?.Language) {
+    console.log('[Worker Parser] ParserCtor.Language.load exists:', !!ParserCtor.Language.load);
+    console.log('[Worker Parser] typeof ParserCtor.Language.load:', typeof ParserCtor.Language.load);
   }
 
   const LanguageCtor = languageCandidates.find(
