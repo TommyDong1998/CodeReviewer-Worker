@@ -371,6 +371,31 @@ export type NewSecurityIssue = typeof securityIssues.$inferInsert;
 export type ScanQuota = typeof scanQuotas.$inferSelect;
 export type NewScanQuota = typeof scanQuotas.$inferInsert;
 
+// Function Scans table - tracks function parsing/scanning jobs
+export const functionScans = pgTable('function_scans', {
+  id: serial('id').primaryKey(),
+  scanId: varchar('scan_id', { length: 100 }).notNull().unique(),
+  repoId: integer('repo_id')
+    .notNull()
+    .references(() => githubRepos.id, { onDelete: 'cascade' }),
+  branch: varchar('branch', { length: 255 }).notNull(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+  teamId: integer('team_id').references(() => teams.id, { onDelete: 'cascade' }),
+  status: varchar('status', { length: 20 }).notNull().default('processing'), // processing, completed, failed
+  filesProcessed: integer('files_processed').default(0),
+  functionsDetected: integer('functions_detected').default(0),
+  scanDuration: integer('scan_duration'), // milliseconds
+  errorMessage: text('error_message'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  completedAt: timestamp('completed_at'),
+}, (table) => ({
+  repoIdx: index('function_scans_repo_idx').on(table.repoId),
+  teamIdx: index('function_scans_team_idx').on(table.teamId),
+}));
+
+export type FunctionScan = typeof functionScans.$inferSelect;
+export type NewFunctionScan = typeof functionScans.$inferInsert;
+
 export enum ActivityType {
   SIGN_UP = 'SIGN_UP',
   SIGN_IN = 'SIGN_IN',
