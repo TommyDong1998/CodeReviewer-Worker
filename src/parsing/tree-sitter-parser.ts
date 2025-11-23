@@ -89,47 +89,39 @@ async function getParserModule() {
 
     await ensureCoreParserWasm();
 
-    await Parser.init({
-      locateFile(scriptName: string, scriptDirectory: string) {
-        if (scriptName === 'tree-sitter.wasm') {
-          return path.join(LOCAL_WASM_DIR, 'tree-sitter.wasm');
-        }
-        return path.join(scriptDirectory, scriptName);
-      },
-      // CRITICAL: Provide instantiateWasm to handle WASM instantiation manually
-      // This allows us to inject the missing env functions
-      instantiateWasm(imports: any, successCallback: any) {
-        // Add missing callback stubs to env imports
-        if (!imports.env) imports.env = {};
-
-        // Create actual function objects (not arrow functions in case that matters)
+    // Monkey-patch WebAssembly.instantiate to inject missing env callbacks
+    const originalInstantiate = (globalThis as any).WebAssembly.instantiate;
+    (globalThis as any).WebAssembly.instantiate = function(buffer: any, imports: any) {
+      // Inject missing callbacks into imports.env
+      if (imports && imports.env) {
         const noop = function() {};
+        if (!imports.env.tree_sitter_progress_callback) {
+          imports.env.tree_sitter_progress_callback = noop;
+        }
+        if (!imports.env.tree_sitter_log_callback) {
+          imports.env.tree_sitter_log_callback = noop;
+        }
+        if (!imports.env.tree_sitter_query_progress_callback) {
+          imports.env.tree_sitter_query_progress_callback = noop;
+        }
+        console.log('[Worker Parser] Injected callbacks into WASM imports');
+      }
+      return originalInstantiate.call(this, buffer, imports);
+    };
 
-        // Add all possible tree-sitter callback stubs
-        imports.env.tree_sitter_progress_callback = noop;
-        imports.env.tree_sitter_log_callback = noop;
-        imports.env.tree_sitter_query_progress_callback = noop;
-        imports.env.emscripten_notify_memory_growth = noop;
-
-        console.log('[Worker Parser] Added callbacks to imports.env:', Object.keys(imports.env));
-        console.log('[Worker Parser] tree_sitter_query_progress_callback type:', typeof imports.env.tree_sitter_query_progress_callback);
-
-        const wasmPath = path.join(LOCAL_WASM_DIR, 'tree-sitter.wasm');
-
-        import('fs').then(({ promises: fs }) => {
-          return fs.readFile(wasmPath);
-        }).then((wasmBinary: Buffer) => {
-          return (globalThis as any).WebAssembly.instantiate(wasmBinary, imports);
-        }).then((result: any) => {
-          successCallback(result.instance, result.module);
-        }).catch((error: Error) => {
-          console.error('[Worker Parser] WASM instantiation failed:', error);
-          throw error;
-        });
-
-        return {}; // Return empty object for emscripten
-      },
-    });
+    try {
+      await Parser.init({
+        locateFile(scriptName: string, scriptDirectory: string) {
+          if (scriptName === 'tree-sitter.wasm') {
+            return path.join(LOCAL_WASM_DIR, 'tree-sitter.wasm');
+          }
+          return path.join(scriptDirectory, scriptName);
+        },
+      });
+    } finally {
+      // Restore original WebAssembly.instantiate
+      (globalThis as any).WebAssembly.instantiate = originalInstantiate;
+    }
 
     parserModule = { Parser, Language: Parser.Language };
   }
