@@ -1,9 +1,14 @@
 import { existsSync, readFileSync } from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { db } from '../db/drizzle.js';
 import { githubAppInstallations } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { createSign } from 'crypto';
+
+// Get __dirname equivalent in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * GitHub App configuration
