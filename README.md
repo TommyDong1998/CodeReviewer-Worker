@@ -25,6 +25,10 @@ SQS Queue → sqsd (Beanstalk daemon) → HTTP POST → Worker App
                                     or retries (if 500)
 ```
 
+## Architecture Notes
+
+**Module System**: This worker uses **ES Modules (ESM)** (`"type": "module"` in package.json). This is required because `web-tree-sitter` is an ESM-only package. Do not convert back to CommonJS as it will break the tree-sitter parser.
+
 ## Setup
 
 1. Install dependencies:
