@@ -15,7 +15,7 @@
     "drizzle-orm": "^0.43.1",
     "postgres": "^3.4.5",
     "typescript": "^5.8.3",
-    "web-tree-sitter": "^0.20.8"
+    "web-tree-sitter": "^0.25.10"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.7",

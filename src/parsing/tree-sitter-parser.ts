@@ -77,67 +77,22 @@ const CLASS_NODE_TYPES: Record<string, Set<string>> = {
 
 async function getParserModule() {
   if (!parserModule) {
-    // Import web-tree-sitter - it may be CommonJS or ESM
-    const TreeSitter = await import('web-tree-sitter');
-
-    // Get the actual module (handle both default and named exports)
-    const Parser = (TreeSitter as any).default || TreeSitter;
-
-    console.log('[Worker Parser] TreeSitter module type:', typeof Parser);
-    console.log('[Worker Parser] TreeSitter keys:', Object.keys(TreeSitter));
-    console.log('[Worker Parser] Parser.init exists:', typeof Parser.init);
+    // Import web-tree-sitter using named imports
+    const { Parser, Language } = await import('web-tree-sitter');
 
     await ensureCoreParserWasm();
 
-    // Monkey-patch WebAssembly.instantiate to inject missing env callbacks
-    const originalInstantiate = (globalThis as any).WebAssembly.instantiate;
-    const originalInstantiateStreaming = (globalThis as any).WebAssembly.instantiateStreaming;
+    // Initialize the parser with locateFile
+    await Parser.init({
+      locateFile(scriptName: string, scriptDirectory: string) {
+        if (scriptName === 'tree-sitter.wasm') {
+          return path.join(LOCAL_WASM_DIR, 'tree-sitter.wasm');
+        }
+        return path.join(scriptDirectory, scriptName);
+      },
+    });
 
-    const injectCallbacks = (imports: any) => {
-      if (imports && imports.env) {
-        const noop = function() {};
-        // Only inject if not already present
-        if (!imports.env.tree_sitter_progress_callback) imports.env.tree_sitter_progress_callback = noop;
-        if (!imports.env.tree_sitter_log_callback) imports.env.tree_sitter_log_callback = noop;
-        if (!imports.env.tree_sitter_query_progress_callback) imports.env.tree_sitter_query_progress_callback = noop;
-        if (!imports.env.emscripten_notify_memory_growth) imports.env.emscripten_notify_memory_growth = noop;
-        if (!imports.env._abort_js) imports.env._abort_js = noop;
-        console.log('[Worker Parser] Injected missing callbacks into WASM imports');
-      }
-    };
-
-    (globalThis as any).WebAssembly.instantiate = async function(buffer: any, imports: any) {
-      console.log('[Worker Parser] WebAssembly.instantiate intercepted');
-      injectCallbacks(imports);
-      return originalInstantiate.call((globalThis as any).WebAssembly, buffer, imports);
-    };
-
-    if (originalInstantiateStreaming) {
-      (globalThis as any).WebAssembly.instantiateStreaming = async function(source: any, imports: any) {
-        console.log('[Worker Parser] WebAssembly.instantiateStreaming intercepted');
-        injectCallbacks(imports);
-        return originalInstantiateStreaming.call((globalThis as any).WebAssembly, source, imports);
-      };
-    }
-
-    try {
-      await Parser.init({
-        locateFile(scriptName: string, scriptDirectory: string) {
-          if (scriptName === 'tree-sitter.wasm') {
-            return path.join(LOCAL_WASM_DIR, 'tree-sitter.wasm');
-          }
-          return path.join(scriptDirectory, scriptName);
-        },
-      });
-    } finally {
-      // Restore original WebAssembly functions
-      (globalThis as any).WebAssembly.instantiate = originalInstantiate;
-      if (originalInstantiateStreaming) {
-        (globalThis as any).WebAssembly.instantiateStreaming = originalInstantiateStreaming;
-      }
-    }
-
-    parserModule = { Parser, Language: Parser.Language };
+    parserModule = { Parser, Language };
   }
 
   return parserModule;
