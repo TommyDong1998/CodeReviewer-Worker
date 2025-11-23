@@ -4,8 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prestart": "npm run build",
-    "start": "node dist/worker.js",
+    "start": "npm run build && node dist/worker.js",
     "build": "tsc",
     "dev": "ts-node src/worker.ts"
   },
