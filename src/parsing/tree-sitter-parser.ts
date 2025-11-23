@@ -94,17 +94,15 @@ async function getParserModule() {
     const originalInstantiateStreaming = (globalThis as any).WebAssembly.instantiateStreaming;
 
     const injectCallbacks = (imports: any) => {
-      console.log('[Worker Parser] injectCallbacks called, imports:', !!imports);
       if (imports && imports.env) {
-        console.log('[Worker Parser] imports.env exists, keys:', Object.keys(imports.env));
         const noop = function() {};
-        imports.env.tree_sitter_progress_callback = noop;
-        imports.env.tree_sitter_log_callback = noop;
-        imports.env.tree_sitter_query_progress_callback = noop;
-        imports.env.emscripten_notify_memory_growth = noop;
-        console.log('[Worker Parser] Injected callbacks into WASM imports');
-      } else {
-        console.log('[Worker Parser] No imports.env found!');
+        // Only inject if not already present
+        if (!imports.env.tree_sitter_progress_callback) imports.env.tree_sitter_progress_callback = noop;
+        if (!imports.env.tree_sitter_log_callback) imports.env.tree_sitter_log_callback = noop;
+        if (!imports.env.tree_sitter_query_progress_callback) imports.env.tree_sitter_query_progress_callback = noop;
+        if (!imports.env.emscripten_notify_memory_growth) imports.env.emscripten_notify_memory_growth = noop;
+        if (!imports.env._abort_js) imports.env._abort_js = noop;
+        console.log('[Worker Parser] Injected missing callbacks into WASM imports');
       }
     };
 
