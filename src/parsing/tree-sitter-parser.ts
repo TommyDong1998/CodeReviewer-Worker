@@ -77,11 +77,18 @@ const CLASS_NODE_TYPES: Record<string, Set<string>> = {
 
 async function getParserModule() {
   if (!parserModule) {
-    const mod = await import('web-tree-sitter');
-    const resolved = resolveParserExports(mod);
+    // Import web-tree-sitter - it may be CommonJS or ESM
+    const TreeSitter = await import('web-tree-sitter');
+
+    // Get the actual module (handle both default and named exports)
+    const Parser = (TreeSitter as any).default || TreeSitter;
+
+    console.log('[Worker Parser] TreeSitter module type:', typeof Parser);
+    console.log('[Worker Parser] TreeSitter keys:', Object.keys(TreeSitter));
+    console.log('[Worker Parser] Parser.init exists:', typeof Parser.init);
 
     await ensureCoreParserWasm();
-    await resolved.Parser.init({
+    await Parser.init({
       locateFile(scriptName: string, scriptDirectory: string) {
         if (scriptName === 'tree-sitter.wasm') {
           return path.join(LOCAL_WASM_DIR, 'tree-sitter.wasm');
@@ -90,7 +97,7 @@ async function getParserModule() {
       },
     });
 
-    parserModule = resolved;
+    parserModule = { Parser, Language: Parser.Language };
   }
 
   return parserModule;
@@ -150,71 +157,7 @@ function resolveModuleAsset(specifier: string) {
   }
 }
 
-function resolveParserExports(mod: any) {
-  // Handle both ESM and CommonJS module formats
-  const actualModule = mod?.default ?? mod;
-
-  const parserCandidates = [
-    actualModule?.Parser,
-    actualModule,
-    typeof actualModule === 'function' ? actualModule : null,
-    mod?.Parser,
-  ];
-
-  const ParserCtor = parserCandidates.find(
-    (candidate) => candidate && typeof candidate.init === 'function'
-  );
-
-  if (!ParserCtor) {
-    console.error('web-tree-sitter module keys:', Object.keys(mod ?? {}));
-    console.error('web-tree-sitter actualModule keys:', Object.keys(actualModule ?? {}));
-    throw new Error('web-tree-sitter: Parser.init() not found in import.');
-  }
-
-  const languageCandidates = [
-    actualModule?.Language,
-    ParserCtor?.Language,
-    mod?.Language,
-    mod?.default?.Language,
-  ];
-
-  // Debug logging
-  console.log('[Worker Parser] Resolving Language constructor...');
-  console.log('[Worker Parser] Module keys:', Object.keys(mod ?? {}));
-  console.log('[Worker Parser] actualModule keys:', Object.keys(actualModule ?? {}));
-  console.log('[Worker Parser] actualModule.Language exists:', !!actualModule?.Language);
-  console.log('[Worker Parser] ParserCtor.Language exists:', !!ParserCtor?.Language);
-  if (actualModule?.Language) {
-    console.log('[Worker Parser] actualModule.Language.load exists:', !!actualModule.Language.load);
-    console.log('[Worker Parser] typeof actualModule.Language.load:', typeof actualModule.Language.load);
-  }
-  if (ParserCtor?.Language) {
-    console.log('[Worker Parser] ParserCtor.Language.load exists:', !!ParserCtor.Language.load);
-    console.log('[Worker Parser] typeof ParserCtor.Language.load:', typeof ParserCtor.Language.load);
-  }
-
-  const LanguageCtor = languageCandidates.find(
-    (candidate) => candidate && typeof candidate.load === 'function'
-  );
-
-  if (!LanguageCtor) {
-    console.error('[Worker Parser] ERROR: Language.load() not found!');
-    console.error('[Worker Parser] All candidates:');
-    languageCandidates.forEach((c, i) => {
-      console.error(`[Worker Parser]   Candidate ${i}:`, {
-        exists: !!c,
-        type: typeof c,
-        hasLoad: !!c?.load,
-        loadType: typeof c?.load,
-      });
-    });
-    throw new Error('web-tree-sitter: Language.load() not found in import.');
-  }
-
-  console.log('[Worker Parser] ✓ Successfully found Language constructor');
-
-  return { Parser: ParserCtor, Language: LanguageCtor };
-}
+// No longer needed - simplified in getParserModule
 
 // ---------------- Grammar Binary Loader ----------------
 
